@@ -16,7 +16,8 @@ const getCartCount = async (params) => {
 const saveUser = (user) => {
     return user.save()
 }
-const addCart = async (userId, productId) => {
+const addCart = async (params) => {
+    let {userId, productId} = params
     const user = await getUser({userId})
     let goodsItem = ''
     user.cartList.forEach(item => {
@@ -48,7 +49,8 @@ const editCart = (userId, checked, productId, productNum) => {
         "cartList.$.checked": checked
     })
 }
-const delCart = (userId, productId) => {
+const delCart = (params) => {
+    let {userId, productId} = params
     return User.updateOne({"userId": userId}, {
         $pull: {
             "cartList": {
@@ -79,7 +81,8 @@ const delAddress = async (userId, addressId) => {
     })
     return saveUser(user)
 }
-const payment = async (userId, orderTotal, addressId, orderId, createDate) => {
+const payment = async (params) => {
+    let {userId, orderTotal, addressId, orderId, createDate} = params
     const user = await getUser({userId})
     let address = {}
     let goodList = []

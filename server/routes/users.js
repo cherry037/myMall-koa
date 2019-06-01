@@ -1,6 +1,6 @@
 const router = require('koa-router')({prefix: '/users'})
 const userData = require('./../datas/user')
-
+const {errorCaptured, errHandler, successHandler} = require('./../utils/util')
 Date.prototype.Format = function (fmt) {
     var o = {
       "M+": this.getMonth() + 1, //月份
@@ -15,30 +15,23 @@ Date.prototype.Format = function (fmt) {
     for (var k in o)
       if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
     return fmt;
-  }
+}
 
 router
     .post('/login', async (ctx, next) => {
         let {userName, userPwd} = ctx.request.body
-        const user = await userData.getUser({userName, userPwd})
+        // const user = await userData.getUser({userName, userPwd})
+        let [err, user] = await errorCaptured(userData.getUser, {userName, userPwd})
         if (user) {
             ctx.cookies.set('userId', user.userId, {
                 maxAge: 1000*60*60*1000,
                 path: '/'
             })
-            ctx.body = {
-                status: '0',
-                msg: '',
-                result: {
-                    userName: user.userName
-                }
-            }
+            ctx.body = successHandler({
+                userName: user.userName
+            })
         } else {
-            ctx.body = {
-                status: '1',
-                msg: '账号密码错误',
-                result: ''
-            }
+            ctx.body = errHandler(err)
         }
     })
     .post('/logout', (ctx) => {
@@ -54,113 +47,53 @@ router
     })
     .get('/checkLogin', async (ctx) => {
         const userId = ctx.cookies.get('userId')
-        const user = await userData.getUser({userId})
-        if (user) {
-            ctx.body = {
-                status: '0',
-                msg: '',
-                result: user.userName
-            }
-        } else {
-            ctx.body = {
-                status: '1',
-                msg: '未登录',
-                result: ''
-            }
-        }
+        // const user = await userData.getUser({userId})
+        let [err, user] = await errorCaptured(userData.getUser, {userId})
+        ctx.body = user ? successHandler(user.userName) : errHandler(err)
     })
     .get('/cartCount', async (ctx) => {
         const userId = ctx.cookies.get('userId')
-        const cartCount = await userData.getCartCount({userId})
-        if (cartCount) {
-            ctx.body = {
-                status: '0',
-                msg: '',
-                result: cartCount
-            }
-        }
+        // const cartCount = await userData.getCartCount({userId})
+        let [err, cartCount] = await errorCaptured(userData.getCartCount, {userId})
+        ctx.body = cartCount ? successHandler(cartCount) : errHandler(err)
     })
     .get('/cartList', async (ctx) => {
         const userId = ctx.cookies.get('userId')
-        const user = await userData.getUser({userId})
-        if (user) {
-            ctx.body = {
-                status: '0',
-                msg: '',
-                result: {
-                    cartList: user.cartList
-                }
-            }
-        }
+        // const user = await userData.getUser({userId})
+        let [err, user] = await errorCaptured(userData.getUser, {userId})
+        ctx.body = user ? successHandler({cartList: user.cartList}) : errHandler(err)
     })
     .post('/editCart', async (ctx) => {
         const userId = ctx.cookies.get('userId')
         const { checked, productNum, productId } = ctx.request.body
-        const user = await userData.editCart(userId, checked, productId, productNum)
-        if (user) {
-            ctx.body = {
-                status: '0',
-                msg: '',
-                result: 'suc'
-            }
-        }
+        // const user = await userData.editCart(userId, checked, productId, productNum)
+        let [err, user] = await errorCaptured(userData.editCart, {userId, checked, productId, productNum})
+        ctx.body = user ? successHandler('suc') : errHandler(err)
     })
     .post('/delCart', async (ctx) => {
         const userId = ctx.cookies.get('userId')
         const { productId } = ctx.request.body
-        const user = await userData.delCart(userId, productId)
-        if (user) {
-            ctx.body = {
-                status: '0',
-                msg: '',
-                result: 'suc'
-            }
-        }
+        // const user = await userData.delCart(userId, productId)
+        let [err, user] = await errorCaptured(userData.delCart, {userId, productId})
+        ctx.body = user ? successHandler('suc') : errHandler(err)
     })
     .get('/addressList', async (ctx) => {
         const userId = ctx.cookies.get('userId')
-        const user = await userData.getUser({userId})
-        if (userId) {
-            ctx.body = {
-                status: '0',
-                msg: '',
-                result: {
-                    addressList: user.addressList
-                }
-            }
-        }
+        // const user = await userData.getUser({userId})
+        let [err, user] = await errorCaptured(userData.getUser, {userId})
+        ctx.body = user ? successHandler({addressList: user.addressList}) : errHandler(err)
     })
     .post('/setDefault', async (ctx) => {
         const userId = ctx.cookies.get('userId')
         const { addressId } = ctx.request.body
         const user = userData.editAddress(userId, addressId)
-        if (user) {
-            ctx.body = {
-                status: '0',
-                msg: '',
-                result: 'suc'
-            }
-        }
+        ctx.body = user ? successHandler('suc') : errHandler('fail')
     })
     .post('/delAdress', async (ctx) => {
         const userId = ctx.cookies.get('userId')
         const { addressId } = ctx.request.body
-        try {
-            const user = userData.delAddress(userId, addressId)            
-            if (user) {
-                ctx.body = {
-                    status: '0',
-                    msg: '',
-                    result: 'suc'
-                }
-            }
-        } catch(err) {
-            ctx.body = {
-                status: '1',
-                msg: err.message,
-                result: ''
-            }
-        }
+        const user = userData.delAddress(userId, addressId)
+        ctx.body = user ? successHandler('suc') : errHandler('fail')
     })
     .post('/payment', async (ctx) => {
         const userId = ctx.cookies.get('userId')
@@ -171,23 +104,8 @@ router
         const createDate = new Date().Format('yyy-MM-dd hh:mm:ss')
         const orderId = platform + r1 + sysDate + r2
         const { orderTotal, addressId } = ctx.request.body
-        try {
-            const user = await userData.payment(userId, orderTotal, addressId, orderId, createDate)
-            ctx.body = {
-                status: '0',
-                msg: '',
-                result: {
-                    orderId,
-                    orderTotal
-                }
-            }
-        } catch (err) {
-            ctx.body = {
-                status: '1',
-                msg: err.message,
-                result: ''
-            }
-        }
+        let [err, user] = await errorCaptured(userData.payment, {userId, orderTotal, addressId, orderId, createDate})
+        ctx.body = user ? successHandler({orderId, orderTotal}) : errHandler(err)
     })
 
 module.exports = router
